@@ -3,8 +3,12 @@
 # 1. 在 GitHub 建一个新仓库（公开仓库不限分钟数），把本文件放到 .github/workflows/cloud-browser.yml（必须在 main 分支）
 # 2. 仓库页面点 Actions -> "Free Cloud Browser" -> Run workflow，填 VNC 密码 -> Run
 # 3. 等 2~4 分钟，在这次运行的日志里找到 https://xxx.trycloudflare.com/vnc.html，浏览器打开
-# 4. 点 Connect，输入 VNC 密码，就能用里面的 Chrome 了
-# 5. 不用时去 Actions 页面 Cancel 这次运行，省分钟数
+# 4. 点 Connect，输入 VNC 密码，就能用里面的 Chrome 了（中文界面）
+# 5. 浏览器关掉了？在桌面上点右键 -> Google Chrome 就能重新打开
+# 6. 不用时去 Actions 页面 Cancel 这次运行，省分钟数
+#
+# 说明：fluxbox 是轻量窗口管理器，没有桌面图标概念，所以"快捷方式"做成了
+#       桌面右键菜单里的 Chrome 入口，效果一样。
 
 name: Free Cloud Browser
 
@@ -24,10 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360  # GitHub 单个 job 上限 6 小时
     steps:
-      - name: 安装桌面环境
+      - name: 安装桌面环境（含中文语言包）
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify > /dev/null 2>&1
+          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify xterm language-pack-zh-hans > /dev/null 2>&1
+          sudo locale-gen zh_CN.UTF-8 > /dev/null 2>&1
+          echo "LANG=zh_CN.UTF-8" >> $GITHUB_ENV
+          echo "LANGUAGE=zh_CN:zh" >> $GITHUB_ENV
           git clone -q --depth 1 https://github.com/novnc/noVNC.git /tmp/noVNC
 
       - name: 下载 cloudflared（免注册的公网隧道）
@@ -38,6 +45,16 @@ jobs:
       - name: 启动云浏览器
         run: |
           export DISPLAY=:99
+          # fluxbox 右键菜单：Chrome + 终端（关掉浏览器后从这里重开）
+          mkdir -p ~/.fluxbox
+          {
+          echo '[begin] (Fluxbox)'
+          echo '  [exec] (Google Chrome) {google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu --lang=zh-CN --window-size=1366,768}'
+          echo '  [exec] (终端 Terminal) {xterm}'
+          echo '  [separator]'
+          echo '  [exit] (退出)'
+          echo '[end]'
+          } > ~/.fluxbox/menu
           # 虚拟显示器 + 轻量窗口管理器
           Xvfb :99 -screen 0 1366x768x24 > /tmp/xvfb.log 2>&1 &
           sleep 3
@@ -50,11 +67,11 @@ jobs:
           # noVNC 网页客户端
           websockify --web=/tmp/noVNC 6080 localhost:5900 > /tmp/websockify.log 2>&1 &
           sleep 2
-          # 启动 Chrome（用 runner 自带的）
+          # 启动 Chrome（用 runner 自带的，--lang=zh-CN 强制中文界面）
           CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
-          DISPLAY=:99 "$CHROME" --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1366,768 --window-position=0,0 > /tmp/chrome.log 2>&1 &
+          DISPLAY=:99 "$CHROME" --no-sandbox --disable-dev-shm-usage --disable-gpu --lang=zh-CN --window-size=1366,768 --window-position=0,0 > /tmp/chrome.log 2>&1 &
           sleep 3
-          echo "浏览器已在虚拟桌面中启动"
+          echo "浏览器已在虚拟桌面中启动（中文界面）"
 
       - name: 建立公网隧道（在下方日志里找访问地址）
         run: |
@@ -67,6 +84,7 @@ jobs:
               echo "=================================================="
               echo "  浏览器访问地址： ${HOST}/vnc.html"
               echo "  打开后点 Connect，输入你设置的 VNC 密码"
+              echo "  浏览器关掉了？在桌面点右键 -> Google Chrome 重开"
               echo "  手机上建议点开后用双指缩放，体验好很多"
               echo "=================================================="
               echo ""
