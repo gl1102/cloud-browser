@@ -32,7 +32,7 @@ jobs:
       - name: 安装桌面环境（含中文语言包和输入法）
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify xterm language-pack-zh-hans fonts-wqy-microhei fcitx5 fcitx5-chinese-addons dbus-x11 > /dev/null 2>&1
+          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify xterm language-pack-zh-hans fonts-wqy-microhei fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 dbus-x11 > /dev/null 2>&1
           sudo locale-gen zh_CN.UTF-8 > /dev/null 2>&1
           echo "LANG=zh_CN.UTF-8" >> $GITHUB_ENV
           echo "LANGUAGE=zh_CN:zh" >> $GITHUB_ENV
@@ -50,6 +50,8 @@ jobs:
         run: |
           export DISPLAY=:99
           export GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx
+          # D-Bus 会话总线（fcitx5 的输入法前端靠它和守护进程通信，没有它 Chrome 连不上输入法）
+          eval $(dbus-launch --sh-syntax)
           # fcitx5 输入法配置：默认拼音，可用 Ctrl+Space 切换
           mkdir -p ~/.config/fcitx5
           {
@@ -84,6 +86,7 @@ jobs:
           sleep 3
           fcitx5 -d > /tmp/fcitx5.log 2>&1
           sleep 2
+          pgrep -a fcitx5 || echo "WARNING: fcitx5 未能启动，中文输入不可用，见 /tmp/fcitx5.log"
           fluxbox > /tmp/fluxbox.log 2>&1 &
           sleep 2
           # VNC 服务（带密码）
