@@ -32,7 +32,7 @@ jobs:
       - name: 安装桌面环境（含中文语言包和输入法）
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify xterm language-pack-zh-hans fonts-wqy-microhei fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 dbus-x11 > /dev/null 2>&1
+          sudo apt-get install -y -qq xvfb tigervnc-scraping-server fluxbox websockify xterm language-pack-zh-hans fonts-wqy-microhei fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 dbus-x11 > /dev/null 2>&1
           sudo locale-gen zh_CN.UTF-8 > /dev/null 2>&1
           echo "LANG=zh_CN.UTF-8" >> $GITHUB_ENV
           echo "LANGUAGE=zh_CN:zh" >> $GITHUB_ENV
@@ -90,9 +90,15 @@ jobs:
           fluxbox > /tmp/fluxbox.log 2>&1 &
           sleep 2
           # VNC 服务（带密码）
+          # 用 TigerVNC 的 x0vncserver 代替 x11vnc：它支持 noVNC 的 UTF-8 扩展剪贴板，
+          # 从浏览器外粘贴中文不会再变成问号（x11vnc 太老不支持，noVNC 会把中文硬转成 ?）
           mkdir -p ~/.vnc
-          x11vnc -storepasswd "${{ inputs.vnc_password }}" ~/.vnc/passwd > /dev/null
-          x11vnc -display :99 -forever -shared -rfbauth ~/.vnc/passwd -rfbport 5900 -bg -o /tmp/x11vnc.log
+          VNC_PASSWD=$(command -v vncpasswd || command -v tigervncpasswd)
+          printf '%s' "${{ inputs.vnc_password }}" | "$VNC_PASSWD" -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          VNC_SERVER=$(command -v x0vncserver || command -v x0tigervncserver)
+          "$VNC_SERVER" -display :99 -rfbport 5900 -rfbauth ~/.vnc/passwd -SecurityTypes VncAuth > /tmp/vncserver.log 2>&1 &
+          for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/5900) 2>/dev/null && break; sleep 1; done
           # noVNC 网页客户端
           websockify --web=/tmp/noVNC 6080 localhost:5900 > /tmp/websockify.log 2>&1 &
           sleep 2
