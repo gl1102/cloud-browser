@@ -1,0 +1,79 @@
+# 免费云浏览器 - GitHub Actions workflow
+# 用法：
+# 1. 在 GitHub 建一个新仓库（公开仓库不限分钟数），把本文件放到 .github/workflows/cloud-browser.yml（必须在 main 分支）
+# 2. 仓库页面点 Actions -> "Free Cloud Browser" -> Run workflow，填 VNC 密码 -> Run
+# 3. 等 2~4 分钟，在这次运行的日志里找到 https://xxx.trycloudflare.com/vnc.html，浏览器打开
+# 4. 点 Connect，输入 VNC 密码，就能用里面的 Chrome 了
+# 5. 不用时去 Actions 页面 Cancel 这次运行，省分钟数
+
+name: Free Cloud Browser
+
+on:
+  workflow_dispatch:
+    inputs:
+      vnc_password:
+        description: 'VNC 连接密码（最多8位有效，用完即弃，别用常用密码）'
+        required: true
+      run_minutes:
+        description: '本次运行时长（分钟，最多填 350）'
+        required: false
+        default: '300'
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # GitHub 单个 job 上限 6 小时
+    steps:
+      - name: 安装桌面环境
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb x11vnc fluxbox websockify > /dev/null 2>&1
+          git clone -q --depth 1 https://github.com/novnc/noVNC.git /tmp/noVNC
+
+      - name: 下载 cloudflared（免注册的公网隧道）
+        run: |
+          curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared
+          chmod +x /tmp/cloudflared
+
+      - name: 启动云浏览器
+        run: |
+          export DISPLAY=:99
+          # 虚拟显示器 + 轻量窗口管理器
+          Xvfb :99 -screen 0 1366x768x24 > /tmp/xvfb.log 2>&1 &
+          sleep 3
+          fluxbox > /tmp/fluxbox.log 2>&1 &
+          sleep 2
+          # VNC 服务（带密码）
+          mkdir -p ~/.vnc
+          x11vnc -storepasswd "${{ inputs.vnc_password }}" ~/.vnc/passwd > /dev/null
+          x11vnc -display :99 -forever -shared -rfbauth ~/.vnc/passwd -rfbport 5900 -bg -o /tmp/x11vnc.log
+          # noVNC 网页客户端
+          websockify --web=/tmp/noVNC 6080 localhost:5900 > /tmp/websockify.log 2>&1 &
+          sleep 2
+          # 启动 Chrome（用 runner 自带的）
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          DISPLAY=:99 "$CHROME" --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1366,768 --window-position=0,0 > /tmp/chrome.log 2>&1 &
+          sleep 3
+          echo "浏览器已在虚拟桌面中启动"
+
+      - name: 建立公网隧道（在下方日志里找访问地址）
+        run: |
+          /tmp/cloudflared tunnel --url http://127.0.0.1:6080 --no-autoupdate > /tmp/tunnel.log 2>&1 &
+          echo "等待隧道地址生成..."
+          for i in $(seq 1 60); do
+            HOST=$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+            if [ -n "$HOST" ]; then
+              echo ""
+              echo "=================================================="
+              echo "  浏览器访问地址： ${HOST}/vnc.html"
+              echo "  打开后点 Connect，输入你设置的 VNC 密码"
+              echo "  手机上建议点开后用双指缩放，体验好很多"
+              echo "=================================================="
+              echo ""
+              break
+            fi
+            sleep 2
+          done
+          RUN_MINUTES="${{ inputs.run_minutes }}"
+          echo "保持运行 ${RUN_MINUTES} 分钟（也可在 Actions 页面随时 Cancel 结束）"
+          sleep $((RUN_MINUTES * 60))
