@@ -4,7 +4,9 @@
 # 2. 仓库页面点 Actions -> "Free Cloud Browser" -> Run workflow，填 VNC 密码 -> Run
 # 3. 等 3~5 分钟（要装中文语言包和输入法），在这次运行的日志里找到 https://xxx.trycloudflare.com/vnc.html，浏览器打开
 # 4. 点 Connect，输入 VNC 密码，就能用里面的 Chrome 了（中文界面）
-# 5. 输入法：按 Ctrl+Space 在中文拼音 / 英文之间切换
+# 5. 输入法：中英文两种，默认拼音；切换方式二选一：
+#    - 桌面右键 -> "切换输入法 中/英"（手机上用这个，不用记快捷键）
+#    - 键盘按 Ctrl+Space
 # 6. 浏览器关掉了？在桌面上点右键 -> Google Chrome 就能重新打开
 # 7. 不用时去 Actions 页面 Cancel 这次运行，省分钟数
 #
@@ -76,6 +78,7 @@ jobs:
           {
           echo '[begin] (Fluxbox)'
           echo '  [exec] (Google Chrome) {google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu --lang=zh-CN --window-size=1366,768}'
+          echo '  [exec] (切换输入法 中/英) {fcitx5-remote -t}'
           echo '  [exec] (终端 Terminal) {xterm}'
           echo '  [separator]'
           echo '  [exit] (退出)'
@@ -106,7 +109,7 @@ jobs:
           CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
           DISPLAY=:99 "$CHROME" --no-sandbox --disable-dev-shm-usage --disable-gpu --lang=zh-CN --window-size=1366,768 --window-position=0,0 > /tmp/chrome.log 2>&1 &
           sleep 3
-          echo "浏览器已在虚拟桌面中启动（中文界面 + 拼音输入法，Ctrl+Space 切换）"
+          echo "浏览器已在虚拟桌面中启动（中文界面 + 中英文输入法，右键菜单可切换）"
 
       - name: 建立公网隧道（在下方日志里找访问地址）
         run: |
@@ -119,7 +122,7 @@ jobs:
               echo "=================================================="
               echo "  浏览器访问地址： ${HOST}/vnc.html"
               echo "  打开后点 Connect，输入你设置的 VNC 密码"
-              echo "  输入法按 Ctrl+Space 在中文拼音/英文间切换"
+              echo "  输入法：桌面右键 -> 切换输入法 中/英（或按 Ctrl+Space）"
               echo "  浏览器关掉了？在桌面点右键 -> Google Chrome 重开"
               echo "  手机上建议点开后用双指缩放，体验好很多"
               echo "=================================================="
