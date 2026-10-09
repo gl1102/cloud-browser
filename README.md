@@ -1,3 +1,5 @@
+[简体中文](README.md) | [English](README.en.md) | [Русский](README.ru.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md)
+
 # ☁️ cloud-browser — 免费云浏览器
 
 用 GitHub Actions 的免费 Ubuntu 虚拟机，打造一个可以通过浏览器远程访问的云桌面，内置 Chrome 浏览器。打开网页就能用一台能上网的云电脑，不用时关掉就行，全程免费。
